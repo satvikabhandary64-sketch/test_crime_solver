@@ -1,0 +1,53 @@
+/* SIDEBAR TITLE */
+section[data-testid="stSidebar"] h1 {
+    color: #f8fbf9;
+}
+
+/* FADE IN ANIMATION */
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(10px);}
+    to {opacity: 1; transform: translateY(0);}
+}
+
+.fade-in {
+    animation: fadeIn 0.8s ease-in-out;
+}
+
+/* TYPEWRITER EFFECT */
+.typewriter {
+    overflow: hidden;
+    border-right: 2px solid #38bdf8;
+    white-space: nowrap;
+    animation: typing 2s steps(40, end), blink 0.7s infinite;
+}
+
+@keyframes typing {
+    from { width: 0 }
+    to { width: 100% }
+}
+
+@keyframes blink {
+    50% { border-color: transparent }
+}
+
+/* GLOW EFFECT */
+.glow {
+    color: #22c55e;
+    text-shadow: 0 0 8px #22c55e;
+    
+}
+.guess-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.guess-slot {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    color: white;
+    min-width: 80px;
+}
