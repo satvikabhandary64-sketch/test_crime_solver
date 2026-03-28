@@ -7,7 +7,7 @@ from cases import cases
 # PAGE CONFIG
 # ---------------------------
 st.set_page_config(
-    page_title="Crime Solver Pro",
+    page_title="The Detective's Dossier",
     page_icon="🕵️",
     layout="wide"
 )
@@ -364,7 +364,7 @@ def render_logic_grid(case: dict):
 # SIDEBAR
 # ---------------------------
 with st.sidebar:
-    st.markdown("## 🕵️ Detective Panel")
+    st.markdown("## 🕵️ The dossier")
     # difficulty_label comes from session state (set on landing page)
     difficulty_label = st.session_state.difficulty
 
@@ -449,7 +449,7 @@ if not st.session_state.started:
     st.markdown("""
         <div style="text-align:center; padding: 40px 0 20px 0;">
             <h1 class='title-glow' style='font-size:2.8rem; letter-spacing:3px;'>
-                🕵️ CRIME SOLVER PRO
+                🕵️ THE DETECTIVES DOSSIER
             </h1>
             <p style='color:var(--text-muted); font-size:1.1rem; letter-spacing:2px;'>
                 DETECTIVE SYSTEM v4.0 — INITIALIZING...
