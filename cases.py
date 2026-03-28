@@ -408,7 +408,17 @@ cases = [
                 "description": "A chemistry textbook wedged under the mattress, worn at the aconitine chapter.",
                 "clue_revealed": "✓ This is Marcus's room. His name is written in the front cover of the book, with notes on poison extraction.",
                 "false_clue": "✗ The book belongs to Evelyn — she studied biochemistry before dropping out.",
-                "puzzle": None,
+                "puzzle": {
+                    "type": "riddle",
+                    "question": (
+                        "🔒 The book falls open to a marked page. Solve this to read the annotation:\n\n"
+                        "*I have many leaves but am not a tree. I hold knowledge but cannot speak. "
+                        "The more you read me, the more I give. What am I?*"
+                    ),
+                    "answer": "book",
+                    "hint": "You're looking at one right now. Pages, chapters, a cover.",
+                    "false_clue": "✗ The book belongs to Evelyn — she studied biochemistry before dropping out.",
+                },
             },
             {
                 "name": "Solicitor's Room",
@@ -421,7 +431,17 @@ cases = [
                 "description": "Revised will in a forced-open drawer. Marcus is named sole heir to £4 million.",
                 "clue_revealed": "✓ The will was changed 14 days ago. Marcus accompanied Reginald to the solicitor.",
                 "false_clue": "✗ The will signature has irregularities — it may have been forged without Reginald's knowledge.",
-                "puzzle": None,
+                "puzzle": {
+                    "type": "riddle",
+                    "question": (
+                        "🔒 The will is sealed in an evidence envelope. Solve this to open it:\n\n"
+                        "*I bind the living to the dead. I speak after silence. "
+                        "I give away what was once held. I am written, then followed. What am I?*"
+                    ),
+                    "answer": "will",
+                    "hint": "It's the legal document that determines who gets the estate.",
+                    "false_clue": "✗ The will signature has irregularities — it may have been forged without Reginald's knowledge.",
+                },
             },
             {
                 "name": "Kitchen",
@@ -454,7 +474,17 @@ cases = [
                 "description": "Evelyn was reading here all evening. Three time-stamped messages confirm she never left.",
                 "clue_revealed": "✓ Evelyn's phone data places her in the library from 8 PM to midnight. Solid alibi.",
                 "false_clue": "✗ A phone can be left in a room — the timestamps don't prove Evelyn never moved.",
-                "puzzle": None,
+                "puzzle": {
+                    "type": "riddle",
+                    "question": (
+                        "🔒 Evelyn's phone is locked behind a passcode. Solve this to access her alibi:\n\n"
+                        "*I can travel around the world without moving an inch. "
+                        "I connect people across time. I remember everything but feel nothing. What am I?*"
+                    ),
+                    "answer": "phone",
+                    "hint": "It fits in your pocket. You check it constantly. It has a screen.",
+                    "false_clue": "✗ A phone can be left in a room — the timestamps don't prove Evelyn never moved.",
+                },
             },
             {
                 "name": "Cellar",
