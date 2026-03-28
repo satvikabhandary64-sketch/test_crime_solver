@@ -1,35 +1,10 @@
 # ---------------------------------------------------------------
 # CASES — Crime Solver Pro
-# Replace each "image_url" value with your own photo path/URL.
-#
-# PUZZLE SYSTEM:
-#   Each room may have a "lock" (must solve to enter) and/or
-#   a "puzzle" (must solve to reveal the real clue).
-#
-#   lock = {
-#       "type": "riddle" | "cipher",
-#       "question": str,         # what the player sees
-#       "answer": str,           # correct answer (lowercase, stripped)
-#       "hint": str,             # shown after 1 wrong attempt
-#   }
-#
-#   puzzle = {
-#       "type": "riddle" | "cipher",
-#       "question": str,
-#       "cipher_text": str,      # only for cipher type — the encoded string
-#       "answer": str,           # correct answer (lowercase, stripped)
-#       "hint": str,
-#       "false_clue": str,       # shown if player answers WRONG
-#   }
-#
-#   "locked": True               # room requires solving lock before entering
-#
-# LOGIC GRID is case-level (not per-room) — see "logic_grid" key.
 # ---------------------------------------------------------------
 
 cases = [
     # ===========================================================
-    # EASY — THEFT: The Stolen Watch
+    # EASY — THEFT: The Stolen Watch (NO PUZZLES)
     # ===========================================================
     {
         "title": "The Stolen Watch",
@@ -47,165 +22,106 @@ cases = [
             "sounds": "Dinner chatter, clinking glasses"
         },
         "clues": [
-            "The watch was confirmed on the mantelpiece at 7 PM by two guests.",
-            "No signs of forced entry anywhere in the house.",
-            "One guest was seen alone in the drawing room for several minutes.",
-            "One guest has a documented history of financial trouble.",
-            "A coat by the door had an unusually heavy pocket.",
+            "The watch was on the mantelpiece at 7 PM — two guests confirmed this.",
+            "Diana left the dinner table for 15 minutes between 8:15 and 8:30 PM.",
+            "Frank's coat pocket felt unusually heavy when he hung it up.",
+            "Helen was in the kitchen with staff the entire evening — confirmed by two employees.",
+            "A debt collection letter addressed to Diana was found in the study.",
         ],
-
-        # ----------------------------------------------------------
-        # LOGIC GRID — used in Step 1 (Evidence Board)
-        # rows = suspects, cols = attributes to cross-reference
-        # correct_solution: dict of {suspect: [true attributes]}
-        # ----------------------------------------------------------
         "logic_grid": {
-            "intro": "Cross-reference each suspect against the known facts. Tick every box that applies.",
+            "intro": "As you investigate, tick the boxes that apply to each suspect.",
             "suspects": ["Diana", "Frank", "Helen"],
-            "attributes": ["Was alone in Drawing Room", "Has financial debt", "Left dinner table", "Has kitchen alibi", "Coat felt heavy"],
+            "attributes": ["Left dinner table for 15+ min", "Has financial problems", "Was alone in Drawing Room", "Heavy coat pocket", "Kitchen alibi"],
             "correct": {
                 "Diana":  [True,  True,  True,  False, False],
-                "Frank":  [False, False, False, False, True],
-                "Helen":  [False, False, False, True,  False],
+                "Frank":  [False, False, False, True,  False],
+                "Helen":  [False, False, False, False, True],
             },
-            "reward_clue": "The grid confirms it: only one suspect was alone in the drawing room AND had financial motive AND left the table.",
-            "false_clue":  "Inconclusive — the evidence seems to point toward Frank's suspicious coat.",
+            "reward_clue": "Diana left the table, has debt problems, and was alone in the drawing room.",
+            "false_clue":  "Frank's heavy coat seems suspicious — maybe he hid the watch there.",
         },
-
         "rooms": [
             {
                 "name": "Drawing Room",
                 "icon": "🛋️",
+                "grid_x": 1,
+                "grid_y": 0,
                 "suspect": "Diana",
                 "object": "Empty mantelpiece",
                 "image_url": "Drawing room.jpg",
-                "description": "The mantelpiece shelf has a faint ring where the watch sat. Diana was found alone here.",
-                "clue_revealed": "Diana was alone in this room at 8:20 PM — exactly when the watch disappeared.",
-                "false_clue": "The dust patterns suggest someone short stood here — pointing more toward Helen.",
-                "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 This room holds the key clue — but the evidence is locked behind a riddle.\n\n"
-                        "*I have hands but cannot clap. I have a face but cannot smile. "
-                        "I tell you when things happen, but I am always still. What am I?*"
-                    ),
-                    "answer": "clock",
-                    "hint": "You check it every morning. It hangs on walls or sits on wrists.",
-                    "false_clue": "The dust patterns suggest someone short stood here — pointing more toward Helen.",
-                },
+                "description": "The mantelpiece shelf has a faint ring where the watch sat. A maid saw Diana here alone around 8:20 PM.",
+                "clue_revealed": "✓ Diana was alone in the drawing room at 8:20 PM — exactly when the watch disappeared.",
+                "false_clue": "✗ The dust patterns suggest someone short stood here — pointing more toward Helen.",
+                "puzzle": None,  # No puzzle for easy mode
             },
             {
                 "name": "Dining Room",
                 "icon": "🍽️",
+                "grid_x": 0,
+                "grid_y": 0,
                 "object": "Dinner table",
                 "image_url": "Dining room.jpg",
                 "description": "The dinner table is cleared. One seat was empty between 8:15 and 8:30 PM.",
-                "clue_revealed": "The empty seat belongs to Diana — she slipped away during the main course.",
-                "false_clue": "The seating chart shows Frank sat nearest the door — he could have slipped out easily.",
-                "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 The waiter remembers something — unlock it.\n\n"
-                        "*The more you take, the more you leave behind. What am I?*"
-                    ),
-                    "answer": "footsteps",
-                    "hint": "Think about walking away from a scene.",
-                    "false_clue": "The seating chart shows Frank sat nearest the door — he could have slipped out easily.",
-                },
+                "clue_revealed": "✓ Diana's seat was empty for 15 minutes — she slipped away during the main course.",
+                "false_clue": "✗ The seating chart shows Frank sat nearest the door — he could have slipped out easily.",
+                "puzzle": None,
             },
             {
                 "name": "Entrance Hall",
                 "icon": "🚪",
-                "locked": True,
+                "grid_x": 2,
+                "grid_y": 0,
+                "locked": False,  # No lock for easy mode
                 "suspect": "Frank",
                 "object": "Heavy coat",
                 "image_url": "Hall.jpg",
-                "description": "Three coats hang by the door. One feels unusually heavy in the left pocket.",
-                "clue_revealed": "The coat belongs to Frank — the pocket holds only spare change. Not the watch.",
-                "false_clue": "The coat lining has a hidden inner pocket — exactly the right size for a Rolex.",
-                "lock": {
-                    "type": "cipher",
-                    "question": "🔐 The entrance is sealed. Decode this message to enter:\n\nCipher (reverse the text): **TAOC YVAeH**",
-                    "answer": "heavy coat",
-                    "hint": "Read it backwards, letter by letter.",
-                },
-                "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 The coat holds a secret — solve this to find out what.\n\n"
-                        "*I'm light as a feather, yet the strongest man can't hold me for more than a few minutes. What am I?*"
-                    ),
-                    "answer": "breath",
-                    "hint": "You do it constantly without thinking. You can't hold it for long.",
-                    "false_clue": "The coat lining has a hidden inner pocket — exactly the right size for a Rolex.",
-                },
+                "description": "Three coats hang by the door. Frank's coat feels unusually heavy in the left pocket.",
+                "clue_revealed": "✓ Frank's coat pocket holds only spare change and keys — not the watch.",
+                "false_clue": "✗ The coat lining has a hidden inner pocket — exactly the right size for a Rolex.",
+                "puzzle": None,
             },
             {
                 "name": "Kitchen",
                 "icon": "🥘",
+                "grid_x": 0,
+                "grid_y": 1,
                 "suspect": "Helen",
                 "object": "Staff logbook",
                 "image_url": "Kitchen.jpg",
                 "description": "The kitchen staff logbook shows all staff were present from 7:30 to 9 PM.",
-                "clue_revealed": "Helen was in the kitchen all night — confirmed by two staff members.",
-                "false_clue": "There's a 12-minute gap in Helen's logbook entries — unaccounted time.",
-                "puzzle": {
-                    "type": "cipher",
-                    "question": "🔒 The logbook has a coded entry. Decode it (Caesar shift +3 — shift each letter back by 3):",
-                    "cipher_text": "KHOHA ZDV KHUH",
-                    "answer": "helen was here",
-                    "hint": "Each letter is shifted forward by 3. A→D, B→E... so reverse it: D→A, E→B.",
-                    "false_clue": "There's a 12-minute gap in Helen's logbook entries — unaccounted time.",
-                },
+                "clue_revealed": "✓ Helen was in the kitchen all night — confirmed by two staff members.",
+                "false_clue": "✗ There's a 12-minute gap in Helen's logbook entries — unaccounted time.",
+                "puzzle": None,
             },
             {
                 "name": "Study",
                 "icon": "📋",
-                "locked": True,
+                "grid_x": 1,
+                "grid_y": 1,
+                "locked": False,
                 "object": "Debt notice",
                 "image_url": "Study.jpg",
-                "description": "A crumpled letter on the desk — a debt collection notice addressed to Diana Voss.",
-                "clue_revealed": "Diana is $30,000 in debt. She had a powerful financial motive.",
-                "false_clue": "The debt notice is addressed to Gerald Mercer himself — perhaps he staged the theft.",
-                "lock": {
-                    "type": "riddle",
-                    "question": "🔐 The study door is locked. Answer to enter:\n\n*I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?*",
-                    "answer": "echo",
-                    "hint": "You hear me in mountains and empty halls.",
-                },
-                "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 A letter lies folded on the desk. To read it, solve this:\n\n"
-                        "*The more of me there is, the less you see. What am I?*"
-                    ),
-                    "answer": "darkness",
-                    "hint": "Turn off the lights.",
-                    "false_clue": "The debt notice is addressed to Gerald Mercer himself — perhaps he staged the theft.",
-                },
+                "description": "A crumpled letter on the desk — a debt collection notice addressed to Diana Voss for $30,000.",
+                "clue_revealed": "✓ Diana is $30,000 in debt — she had a powerful financial motive to steal the watch.",
+                "false_clue": "✗ The debt notice is addressed to Gerald Mercer himself — perhaps he staged the theft.",
+                "puzzle": None,
             },
             {
                 "name": "Back Garden",
                 "icon": "🌿",
+                "grid_x": 2,
+                "grid_y": 1,
                 "object": "Disturbed soil",
                 "image_url": "Backgarden.jpg",
                 "description": "A patch of soil near the garden wall is freshly disturbed.",
-                "clue_revealed": "Someone planned to retrieve something buried here later — a stash point.",
-                "false_clue": "Gardening tools are freshly used — the groundskeeper was here after dark, suspicious.",
-                "puzzle": {
-                    "type": "cipher",
-                    "question": "🔒 A note is buried in a small tin. Decode it (reverse the text):",
-                    "cipher_text": "EREHEREHTKCABEHT",
-                    "answer": "the back here here",
-                    "hint": "Simply read the letters in reverse order.",
-                    "false_clue": "Gardening tools are freshly used — the groundskeeper was here after dark, suspicious.",
-                },
+                "clue_revealed": "✓ The garden soil was disturbed by the gardener earlier that day — unrelated to the theft.",
+                "false_clue": "✗ Someone planned to retrieve something buried here later — a possible stash point.",
+                "puzzle": None,
             },
         ],
-
         "suspects": {
             "Diana": {
-                "description": "Interior decorator, currently in serious financial trouble.",
+                "description": "Interior decorator, currently in serious financial trouble ($30,000 debt).",
                 "dialogue": [
                     "I stepped away for some air — the dining room was stuffy.",
                     "I've admired that watch before, sure. Doesn't mean I took it.",
@@ -213,15 +129,15 @@ cases = [
                 ]
             },
             "Frank": {
-                "description": "Gerald's business partner, a frequent visitor.",
+                "description": "Gerald's business partner, a frequent visitor with no financial troubles.",
                 "dialogue": [
                     "I was at the table the whole time — ask Gerald.",
-                    "My coat pocket? Spare change. Go ahead and look.",
+                    "My coat pocket? Spare change and keys. Go ahead and look.",
                     "Diana was gone for at least fifteen minutes. Nobody noticed?",
                 ]
             },
             "Helen": {
-                "description": "Caterer hired for the evening.",
+                "description": "Caterer hired for the evening, worked in the kitchen all night.",
                 "dialogue": [
                     "I was in the kitchen from seven-thirty. I never left.",
                     "My staff can vouch for me — we were plating dessert.",
@@ -233,18 +149,19 @@ cases = [
         "explanation": (
             "Diana stole the watch. She slipped away from the dinner table between 8:15 and 8:30 PM, "
             "went to the drawing room alone, and pocketed the Rolex. The debt notice in the study confirms "
-            "her financial motive. Frank's coat held only spare change. Helen had a confirmed alibi."
+            "her financial motive ($30,000). Frank's coat held only spare change. Helen had a confirmed alibi "
+            "in the kitchen with staff."
         ),
         "reward_points": 10,
         "hints": [
-            "Who was unaccounted for at the dinner table?",
+            "Who left the dinner table during the critical time window?",
             "Check the study — financial trouble is a classic motive.",
-            "The empty seat tells you exactly when the theft happened.",
+            "Who was alone in the drawing room when the watch vanished?",
         ]
     },
 
     # ===========================================================
-    # MEDIUM — ARSON: The Burnfield Warehouse
+    # MEDIUM — ARSON: The Burnfield Warehouse (SIMPLIFIED)
     # ===========================================================
     {
         "title": "The Burnfield Warehouse",
@@ -268,9 +185,8 @@ cases = [
             "A lighter engraved 'R.C.' was found near bay 4.",
             "Security footage was manually erased — requires supervisor credentials.",
         ],
-
         "logic_grid": {
-            "intro": "Map each suspect against the physical evidence. Mark every fact that applies to them.",
+            "intro": "As you investigate, tick the boxes that apply to each suspect.",
             "suspects": ["Ray Corbin", "Sandra Oakes", "Pete Dunne"],
             "attributes": ["On site after 1 AM", "Has supervisor system access", "Fingerprint on canister", "Left before midnight", "Co-signed insurance"],
             "correct": {
@@ -278,22 +194,23 @@ cases = [
                 "Sandra Oakes": [False, False, False, False, True],
                 "Pete Dunne":   [False, False, False, True,  False],
             },
-            "reward_clue": "Only one person was on site after 1 AM, had system access to wipe footage, AND left a fingerprint.",
-            "false_clue":  "The insurance co-signature places Sandra Oakes as the primary financial beneficiary — strong motive.",
+            "reward_clue": "Only Ray was on site after 1 AM, had system access to wipe footage, AND left a fingerprint.",
+            "false_clue":  "Sandra co-signed the insurance — she had financial motive.",
         },
-
         "rooms": [
             {
                 "name": "East Entrance",
                 "icon": "🔥",
+                "grid_x": 0,
+                "grid_y": 0,
                 "suspect": "Ray Corbin",
                 "object": "Accelerant trail",
                 "image_url": "eastentrance.jpg",
                 "description": "Burn patterns show the fire started here. Lighter fluid pooled near the door frame.",
-                "clue_revealed": "Ray Corbin's keycard logged entry at 1:47 AM through this door.",
-                "false_clue": "The burn pattern suggests the fire spread from outside — possibly an outsider.",
+                "clue_revealed": "✓ Ray Corbin's keycard logged entry at 1:47 AM through this door.",
+                "false_clue": "✗ The burn pattern suggests the fire spread from outside — possibly an outsider.",
                 "puzzle": {
-                    "type": "riddle",
+                    "type": "riddle",  # Only riddle, no cipher
                     "question": (
                         "🔒 The fire marshal's report is locked behind a riddle.\n\n"
                         "*I destroy everything I touch, yet I give life and warmth. "
@@ -301,121 +218,81 @@ cases = [
                     ),
                     "answer": "fire",
                     "hint": "You're standing in its aftermath right now.",
-                    "false_clue": "The burn pattern suggests the fire spread from outside — possibly an outsider.",
+                    "false_clue": "✗ The burn pattern suggests the fire spread from outside — possibly an outsider.",
                 },
             },
             {
                 "name": "Storage Bay 4",
                 "icon": "📦",
-                "locked": True,
+                "grid_x": 1,
+                "grid_y": 0,
+                "locked": False,  # Remove lock for medium
                 "object": "Engraved lighter",
                 "image_url": "storagebay4.jpg",
                 "description": "Charred shelving and a second ignition point. A scorched lighter near the bay post.",
-                "clue_revealed": "The lighter is engraved 'R.C.' — Ray Corbin's initials. Hard to explain away.",
-                "false_clue": "The initials 'R.C.' could also stand for the company name — Rylance Corp. Red herring.",
-                "lock": {
-                    "type": "cipher",
-                    "question": "🔐 Bay 4 is sealed with a padlock code. The combination is hidden in this cipher.\n\nDecode (reverse): **4 YAB RETTAM SDLEIF**",
-                    "answer": "fields matter bay 4",
-                    "hint": "Read each word in reverse order.",
-                },
-                "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 Something small on the floor holds the key. Solve this to identify it:\n\n"
-                        "*I can start a war or end one. I fit in your pocket. "
-                        "My spark can destroy a forest. What am I?*"
-                    ),
-                    "answer": "lighter",
-                    "hint": "You use it to ignite things. Small, metal, engraved.",
-                    "false_clue": "The initials 'R.C.' could stand for Rylance Corp — the former building owner.",
-                },
+                "clue_revealed": "✓ The lighter is engraved 'R.C.' — Ray Corbin's initials. Hard to explain away.",
+                "false_clue": "✗ The initials 'R.C.' could also stand for the company name — Rylance Corp.",
+                "puzzle": None,
             },
             {
                 "name": "Manager's Office",
                 "icon": "🗂️",
+                "grid_x": 2,
+                "grid_y": 0,
                 "suspect": "Sandra Oakes",
                 "object": "Insurance paperwork",
                 "image_url": "managersoffice.jpg",
                 "description": "Insurance policy in the filing cabinet — tripled six weeks ago. Sandra co-signed.",
-                "clue_revealed": "Sandra co-signed the inflated insurance. Financial motive exists — but she wasn't on site.",
-                "false_clue": "Sandra's handwriting on the policy is shaky — possibly signed under duress or forged.",
-                "puzzle": {
-                    "type": "cipher",
-                    "question": "🔒 The policy has a handwritten note in code. Decode it (Caesar shift +4 — shift each letter back by 4):",
-                    "cipher_text": "WERHXVE'W ASVOW",
-                    "answer": "sandra's works",
-                    "hint": "Each letter was shifted forward by 4. Reverse that: E→A, F→B, etc.",
-                    "false_clue": "Sandra's handwriting on the policy appears shaky — possibly forged or signed under pressure.",
-                },
+                "clue_revealed": "✓ Sandra co-signed the inflated insurance. Financial motive exists — but she wasn't on site.",
+                "false_clue": "✗ Sandra's handwriting on the policy is shaky — possibly signed under duress.",
+                "puzzle": None,
             },
             {
                 "name": "Security Room",
                 "icon": "📷",
-                "locked": True,
+                "grid_x": 0,
+                "grid_y": 1,
+                "locked": False,
                 "object": "Wiped hard drive",
                 "image_url": "securityroom.jpg",
                 "description": "The DVR is wiped. Logs show supervisor login at 1:52 AM — Ray Corbin's credentials.",
-                "clue_revealed": "Ray used his own supervisor login to erase footage — 18 minutes before the fire.",
-                "false_clue": "The login credentials were stolen — someone impersonated Ray to frame him.",
-                "lock": {
-                    "type": "riddle",
-                    "question": "🔐 The security room requires a verbal code. Answer this to gain entry:\n\n*I watch everything but remember nothing once you clear me. I see all crimes but cannot speak. What am I?*",
-                    "answer": "camera",
-                    "hint": "It records. It watches. It can be wiped.",
-                },
+                "clue_revealed": "✓ Ray used his own supervisor login to erase footage — 18 minutes before the fire.",
+                "false_clue": "✗ The login credentials were stolen — someone impersonated Ray to frame him.",
                 "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 The wipe log has a timestamp anomaly. Solve this to read it:\n\n"
-                        "*I have a beginning and middle but no end. I can be deleted "
-                        "but I always leave a trace. What am I?*"
-                    ),
-                    "answer": "record",
-                    "hint": "Think about what a DVR stores.",
-                    "false_clue": "The wipe was triggered remotely — from an external IP address, not on-site.",
+                    "type": "cipher",  # Only cipher with helper
+                    "question": "🔒 The wipe log has an encrypted entry. Decode it (Caesar cipher, shift +3):",
+                    "cipher_text": "UDB UH ZDV KHUH DW 1:52 DP",
+                    "answer": "ray was here at 1:52 am",
+                    "hint": "Shift each letter BACK by 3: D→A, E→B, etc.",
+                    "false_clue": "✗ The wipe was triggered remotely — from an external IP address.",
                 },
             },
             {
                 "name": "Loading Dock",
                 "icon": "🚚",
+                "grid_x": 1,
+                "grid_y": 1,
                 "suspect": "Pete Dunne",
                 "object": "Keycard swipe log",
                 "image_url": "loadingdock.jpg",
                 "description": "Pete Dunne's keycard shows entry at 12:30 AM and exit at 1:15 AM.",
-                "clue_revealed": "Pete left over an hour before the fire — his exit timestamp is verified.",
-                "false_clue": "Keycard logs can be spoofed — Pete may have stayed on site without swiping again.",
-                "puzzle": {
-                    "type": "cipher",
-                    "question": "🔒 The access log has an encrypted entry. Decode it (reverse the text):",
-                    "cipher_text": "MA 51:1 TA TUO DEPPAWS ENNUD",
-                    "answer": "dunne swapped out at 1:15 am",
-                    "hint": "Read the entire string backwards.",
-                    "false_clue": "Keycard logs can be spoofed — Pete may have stayed on-site without swiping out.",
-                },
+                "clue_revealed": "✓ Pete left over an hour before the fire — his exit timestamp is verified.",
+                "false_clue": "✗ Keycard logs can be spoofed — Pete may have stayed on site without swiping again.",
+                "puzzle": None,
             },
             {
                 "name": "Roof Access",
                 "icon": "🏗️",
+                "grid_x": 2,
+                "grid_y": 1,
                 "object": "Fuel canister",
                 "image_url": "roofaccess.jpg",
                 "description": "A half-empty lighter fluid canister behind the roof hatch — same brand as the trail below.",
-                "clue_revealed": "Partial fingerprint on the canister — lab match: Ray Corbin.",
-                "false_clue": "The canister brand is sold in bulk to the warehouse — any employee could have left it.",
-                "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 The canister is tagged with evidence tape. Read the forensics note — solve this first:\n\n"
-                        "*I touch everything you touch, yet you cannot see me. "
-                        "I can place you at the scene of any crime. What am I?*"
-                    ),
-                    "answer": "fingerprint",
-                    "hint": "You leave me on every surface. No two are alike.",
-                    "false_clue": "The canister brand is sold in bulk to the warehouse — any employee could have left it.",
-                },
+                "clue_revealed": "✓ Partial fingerprint on the canister — lab match: Ray Corbin.",
+                "false_clue": "✗ The canister brand is sold in bulk to the warehouse — any employee could have left it.",
+                "puzzle": None,
             },
         ],
-
         "suspects": {
             "Ray Corbin": {
                 "description": "Warehouse supervisor with full keycard and system access.",
@@ -459,7 +336,7 @@ cases = [
     },
 
     # ===========================================================
-    # HARD — MURDER: The Coldwell Inheritance
+    # HARD — MURDER: The Coldwell Inheritance (IMPROVED)
     # ===========================================================
     {
         "title": "The Coldwell Inheritance",
@@ -478,13 +355,12 @@ cases = [
             "sounds": "Grandfather clock, wind in the eaves"
         },
         "clues": [
-            "Toxicology confirmed: aconitine poisoning — slow-acting and odourless.",
+            "Toxicology confirmed: aconitine poisoning — slow-acting and odourless, takes 48 hours to be fatal.",
             "The will was rewritten 14 days ago — sole beneficiary changed to Marcus Coldwell.",
-            "Only one person delivered the nightly whisky to the study.",
-            "A chemistry textbook hidden in the guest room was marked at the aconitine chapter.",
-            "Reginald's doctor confirms symptoms for 48 hours — poison administered days earlier.",
+            "Marcus delivered the nightly whisky to the study every evening.",
+            "A chemistry textbook hidden in the guest room has notes on aconitine extraction.",
+            "Reginald's doctor confirms symptoms began 2 days ago — poison was administered earlier.",
         ],
-
         "logic_grid": {
             "intro": "This is a murder. Every detail matters. Cross-reference suspects against all known facts.",
             "suspects": ["Marcus Coldwell", "Iris", "Evelyn"],
@@ -494,22 +370,23 @@ cases = [
                 "Iris":            [False, False, False, False, True],
                 "Evelyn":          [False, False, False, True,  False],
             },
-            "reward_clue": "One suspect delivered the whisky, stands to inherit everything, and has documented chemistry knowledge.",
-            "false_clue":  "Evelyn was cut from the will and has no alibi for the 48-hour window before death — she had time and motive.",
+            "reward_clue": "Marcus delivered the whisky, inherits £4 million, and has chemistry knowledge.",
+            "false_clue":  "Evelyn was cut from the will — she had motive and opportunity.",
         },
-
         "rooms": [
             {
                 "name": "Private Study",
                 "icon": "🪑",
+                "grid_x": 1,
+                "grid_y": 0,
                 "suspect": "Marcus Coldwell",
                 "object": "Poisoned whisky glass",
                 "image_url": "privatestudy.jpg",
                 "description": "Reginald slumped in his armchair. The whisky glass tests positive for aconitine.",
-                "clue_revealed": "Marcus served Reginald his nightly whisky every evening this week — confirmed by Iris.",
-                "false_clue": "The glass was poured by Iris in the kitchen — she had access to the whisky before Marcus.",
+                "clue_revealed": "✓ Marcus served Reginald his nightly whisky every evening this week — confirmed by Iris.",
+                "false_clue": "✗ The glass was poured by Iris in the kitchen — she had access to the whisky before Marcus.",
                 "puzzle": {
-                    "type": "riddle",
+                    "type": "riddle",  # Only riddle, consistent
                     "question": (
                         "🔒 The forensics report is sealed. Solve this to read it:\n\n"
                         "*I have no taste, no smell, no colour — yet I can end a life quietly. "
@@ -517,131 +394,95 @@ cases = [
                     ),
                     "answer": "poison",
                     "hint": "Think about what killed the victim. Silent, invisible, deadly.",
-                    "false_clue": "The glass was poured and handled by Iris in the kitchen — she touched it before Marcus.",
+                    "false_clue": "✗ The glass was poured and handled by Iris in the kitchen — she touched it before Marcus.",
                 },
             },
             {
                 "name": "Guest Room",
                 "icon": "🛏️",
-                "locked": True,
+                "grid_x": 0,
+                "grid_y": 0,
+                "locked": False,
                 "object": "Hidden chemistry book",
                 "image_url": "guestroom.jpg",
                 "description": "A chemistry textbook wedged under the mattress, worn at the aconitine chapter.",
-                "clue_revealed": "This is Marcus's room. His name is written in the front cover of the book.",
-                "false_clue": "The book belongs to Evelyn — she studied biochemistry before dropping out.",
-                "lock": {
-                    "type": "cipher",
-                    "question": "🔐 The guest room is locked from inside. The spare key code is encoded:\n\nDecode (reverse): **TSEUG EHT SI SUCRAM**",
-                    "answer": "marcus is the guest",
-                    "hint": "Read every word backwards.",
-                },
-                "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 The book is wedged shut. Answer this to open it:\n\n"
-                        "*I am taken from a mine, shut up in a wooden case, "
-                        "from which I am never released, yet I am used by almost every person. What am I?*"
-                    ),
-                    "answer": "pencil",
-                    "hint": "Used for writing. Made of wood and graphite.",
-                    "false_clue": "The book belongs to Evelyn — her old university text from before she dropped out.",
-                },
+                "clue_revealed": "✓ This is Marcus's room. His name is written in the front cover of the book, with notes on poison extraction.",
+                "false_clue": "✗ The book belongs to Evelyn — she studied biochemistry before dropping out.",
+                "puzzle": None,
             },
             {
                 "name": "Solicitor's Room",
                 "icon": "📜",
-                "locked": True,
+                "grid_x": 2,
+                "grid_y": 0,
+                "locked": False,
                 "object": "Rewritten will",
                 "image_url": "solicitorsroom.jpg",
-                "description": "Revised will in a forced-open drawer. Marcus is named sole heir.",
-                "clue_revealed": "The will was changed 14 days ago. Marcus accompanied Reginald to the solicitor.",
-                "false_clue": "The will signature has irregularities — it may have been forged without Reginald's knowledge.",
-                "lock": {
-                    "type": "riddle",
-                    "question": "🔐 The solicitor's filing room is locked. Answer to enter:\n\n*I am always in front of you but cannot be seen. What am I?*",
-                    "answer": "future",
-                    "hint": "It hasn't happened yet. It's coming regardless.",
-                },
-                "puzzle": {
-                    "type": "cipher",
-                    "question": "🔒 The will has a handwritten margin note in code. Decode it (Caesar shift +2 — shift each letter back by 2):",
-                    "cipher_text": "OCTEWU EJCPIGF YJGP OCTEWU ECOG",
-                    "answer": "marcus changed when marcus came",
-                    "hint": "Each letter is shifted forward by 2. Reverse: C→A, D→B, etc.",
-                    "false_clue": "The will signature appears irregular — possibly signed under duress or forged entirely.",
-                },
+                "description": "Revised will in a forced-open drawer. Marcus is named sole heir to £4 million.",
+                "clue_revealed": "✓ The will was changed 14 days ago. Marcus accompanied Reginald to the solicitor.",
+                "false_clue": "✗ The will signature has irregularities — it may have been forged without Reginald's knowledge.",
+                "puzzle": None,
             },
             {
                 "name": "Kitchen",
                 "icon": "🍶",
+                "grid_x": 0,
+                "grid_y": 1,
                 "suspect": "Iris",
                 "object": "Whisky decanter",
                 "image_url": "kitchen1.jpg",
                 "description": "The whisky decanter tests completely clean. Poison was not added here.",
-                "clue_revealed": "Iris prepared the tray but Marcus took it at the study door and delivered the glass himself.",
-                "false_clue": "There is a small unlabelled bottle in the back of the spice cupboard — suspicious.",
+                "clue_revealed": "✓ Iris prepared the tray but Marcus took it at the study door and delivered the glass himself.",
+                "false_clue": "✗ There is a small unlabelled bottle in the back of the spice cupboard — suspicious.",
                 "puzzle": {
-                    "type": "riddle",
-                    "question": (
-                        "🔒 The kitchen log is written in shorthand. Solve this to decipher it:\n\n"
-                        "*I am always hungry, I must always be fed. "
-                        "The finger I touch will soon turn red. What am I?*"
-                    ),
-                    "answer": "fire",
-                    "hint": "Think heat. It consumes everything it touches.",
-                    "false_clue": "There's a small unlabelled bottle in the back of the spice cupboard — contents unknown.",
+                    "type": "cipher",  # One cipher with helper
+                    "question": "🔒 The kitchen log has a coded entry. Decode it (Caesar cipher, shift +2):",
+                    "cipher_text": "OCTEWU VQWM VJG VTC[",
+                    "answer": "marcus took the tray",
+                    "hint": "Shift each letter BACK by 2. Use the Caesar cipher helper above!",
+                    "false_clue": "✗ There's a small unlabelled bottle in the back of the spice cupboard — contents unknown.",
                 },
             },
             {
                 "name": "Library",
                 "icon": "📚",
+                "grid_x": 1,
+                "grid_y": 1,
                 "suspect": "Evelyn",
                 "object": "Phone with timestamps",
                 "image_url": "library1.jpg",
                 "description": "Evelyn was reading here all evening. Three time-stamped messages confirm she never left.",
-                "clue_revealed": "Evelyn's phone data places her in the library from 8 PM to midnight. Solid alibi.",
-                "false_clue": "Phones can be left in a room while the owner moves around — the alibi is not airtight.",
-                "puzzle": {
-                    "type": "cipher",
-                    "question": "🔒 Evelyn left a note in a book. Decode it (reverse the text):",
-                    "cipher_text": "YRARBILETFELREVENE",
-                    "answer": "i never left the library",
-                    "hint": "Read the string of letters in reverse.",
-                    "false_clue": "A phone can be left in a room — the timestamps don't prove Evelyn never moved.",
-                },
+                "clue_revealed": "✓ Evelyn's phone data places her in the library from 8 PM to midnight. Solid alibi.",
+                "false_clue": "✗ A phone can be left in a room — the timestamps don't prove Evelyn never moved.",
+                "puzzle": None,
             },
             {
                 "name": "Cellar",
                 "icon": "🧪",
-                "locked": True,
+                "grid_x": 2,
+                "grid_y": 1,
+                "locked": False,
                 "object": "Empty poison vial",
                 "image_url": "cellar.jpg",
                 "description": "Behind the wine rack: a tiny glass vial, empty. Traces of aconitine inside.",
-                "clue_revealed": "Partial fingerprint on the vial — forensic match to Marcus Coldwell.",
-                "false_clue": "The vial is a standard medicinal bottle — Reginald may have self-administered something.",
-                "lock": {
-                    "type": "cipher",
-                    "question": "🔐 The cellar padlock has a word combination. Decode it:\n\nCipher (reverse): **RALLECEHT**",
-                    "answer": "the cellar",
-                    "hint": "Read the letters backwards.",
-                },
+                "clue_revealed": "✓ Partial fingerprint on the vial — forensic match to Marcus Coldwell.",
+                "false_clue": "✗ The vial is a standard medicinal bottle — Reginald may have self-administered something.",
                 "puzzle": {
-                    "type": "riddle",
+                    "type": "riddle",  # Different puzzle type from kitchen
                     "question": (
                         "🔒 The vial is inside a sealed evidence bag. Solve this to open the case file:\n\n"
-                        "*The more you have of me, the less you see. "
-                        "I am the friend of guilt and the enemy of truth. What am I?*"
+                        "*I am taken from a mine, shut up in a wooden case, "
+                        "from which I am never released, yet I am used by almost every person. What am I?*"
                     ),
-                    "answer": "darkness",
-                    "hint": "Criminals hide in me. I'm what you need to conceal a crime.",
-                    "false_clue": "The vial is a standard medicinal bottle — Reginald had a heart condition and self-medicated.",
+                    "answer": "pencil lead",
+                    "hint": "Used for writing. Made of wood and graphite.",
+                    "false_clue": "✗ The vial is a standard medicinal bottle — Reginald had a heart condition and self-medicated.",
                 },
             },
         ],
-
         "suspects": {
             "Marcus Coldwell": {
-                "description": "Reginald's nephew and sole beneficiary under the new will.",
+                "description": "Reginald's nephew and sole beneficiary under the new will (£4 million).",
                 "dialogue": [
                     "Uncle Reginald asked me to bring the tray — I was just being helpful.",
                     "That chemistry book is old. I studied biochemistry at university, years ago.",
@@ -649,11 +490,11 @@ cases = [
                 ]
             },
             "Iris": {
-                "description": "Housekeeper at Coldwell Manor for 22 years.",
+                "description": "Housekeeper at Coldwell Manor for 22 years, loyal servant.",
                 "dialogue": [
                     "I prepared the tray as I do every night. Mr Marcus took it from me at the study door.",
                     "Mr Coldwell seemed unwell these past two days — I thought it was his age.",
-                    "I have served this family faithfully for decades.",
+                    "I have served this family faithfully for decades. I would never harm him.",
                 ]
             },
             "Evelyn": {
@@ -661,7 +502,7 @@ cases = [
                 "dialogue": [
                     "I was in the library all evening. Check my phone.",
                     "Yes, I was cut from the will — and I was furious. But I didn't do this.",
-                    "Look at Marcus. He took that tray to the study himself.",
+                    "Look at Marcus. He took that tray to the study himself every night.",
                 ]
             },
         },
