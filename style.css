@@ -11,7 +11,6 @@ html, body, [data-testid="stAppViewContainer"] {
     font-family: 'Courier Prime', monospace !important;
 }
 
-/* MAIN CONTENT AREA */
 [data-testid="stMain"] {
     background-color: #0d1117 !important;
 }
@@ -55,7 +54,7 @@ section[data-testid="stSidebar"] .stMarkdown {
     background-color: #2a5080 !important;
     border-color: #e2c97e !important;
     color: #fff !important;
-    box-shadow: 0 0 10px rgba(226, 201, 126, 0.3) !important;
+    box-shadow: 0 0 8px rgba(226, 201, 126, 0.2) !important;
 }
 
 /* INFO / SUCCESS / ERROR BOXES */
@@ -106,7 +105,7 @@ hr {
     border-color: #1e3a5f !important;
 }
 
-/* MARKDOWN TEXT */
+/* MARKDOWN */
 .stMarkdown p {
     color: #c8d6e5 !important;
     font-family: 'Courier Prime', monospace !important;
@@ -120,9 +119,7 @@ hr {
     border-radius: 4px !important;
     padding: 12px !important;
 }
-[data-testid="stMetricLabel"] {
-    color: #94afc8 !important;
-}
+[data-testid="stMetricLabel"] { color: #94afc8 !important; }
 [data-testid="stMetricValue"] {
     color: #e2c97e !important;
     font-family: 'Special Elite', cursive !important;
@@ -131,14 +128,11 @@ hr {
 /* ============================================================
    ANIMATIONS
    ============================================================ */
-
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-.fade-in {
-    animation: fadeIn 0.8s ease-in-out;
-}
+.fade-in { animation: fadeIn 0.8s ease-in-out; }
 
 @keyframes typing {
     from { width: 0 }
@@ -154,41 +148,28 @@ hr {
     animation: typing 2s steps(40, end), blink 0.7s infinite;
 }
 
-.glow {
-    color: #22c55e;
-    text-shadow: 0 0 8px #22c55e, 0 0 20px rgba(34, 197, 94, 0.4);
+/* TITLE — no blur, sharp text with faint warm drop shadow only */
+.glow-title {
+    color: #e2c97e;
+    text-shadow: none;
 }
 
+/* Landing page title — crisp, no blur */
 .glow-amber {
     color: #e2c97e;
-    text-shadow: 0 0 8px #e2c97e, 0 0 20px rgba(226, 201, 126, 0.4);
+    text-shadow: none;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* VERDICT CORRECT — green, crisp */
+.glow {
+    color: #22c55e;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 /* ============================================================
-   BLUEPRINT MAP STYLES
+   BLUEPRINT MAP
    ============================================================ */
-
-.blueprint-container {
-    background-color: #0a1628;
-    border: 2px solid #1e3a5f;
-    border-radius: 4px;
-    padding: 20px;
-    margin: 16px 0;
-    position: relative;
-}
-
-.blueprint-container::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-        linear-gradient(rgba(30, 58, 95, 0.15) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(30, 58, 95, 0.15) 1px, transparent 1px);
-    background-size: 28px 28px;
-    border-radius: 4px;
-    pointer-events: none;
-}
-
 .room-cell {
     background-color: #0f1e30;
     border: 2px solid #1e3a5f;
@@ -203,25 +184,22 @@ hr {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    position: relative;
 }
 .room-cell:hover {
     border-color: #e2c97e;
     background-color: #162033;
-    box-shadow: 0 0 12px rgba(226, 201, 126, 0.25);
+    box-shadow: 0 0 8px rgba(226, 201, 126, 0.15);
 }
 .room-cell.active {
     border-color: #22c55e;
     background-color: #0a1f0f;
-    box-shadow: 0 0 14px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
 }
 .room-cell.visited {
     border-color: #3a6ea5;
     background-color: #0d1a28;
 }
-.room-icon {
-    font-size: 1.6rem;
-}
+.room-icon { font-size: 1.6rem; }
 .room-name {
     font-family: 'Special Elite', cursive;
     font-size: 0.72rem;
@@ -229,61 +207,9 @@ hr {
     letter-spacing: 0.5px;
     line-height: 1.2;
 }
-.room-cell.active .room-name {
-    color: #22c55e;
-}
+.room-cell.active .room-name { color: #22c55e; }
 
-/* LOCATION DETAIL PANEL */
-.location-panel {
-    background-color: #0f1e30;
-    border: 2px solid #1e3a5f;
-    border-left: 4px solid #e2c97e;
-    border-radius: 4px;
-    padding: 16px 20px;
-    margin: 12px 0;
-    animation: fadeIn 0.4s ease;
-}
-.location-panel h4 {
-    margin: 0 0 8px 0;
-    color: #e2c97e !important;
-}
-
-/* CLUE TAG */
-.clue-tag {
-    display: inline-block;
-    background-color: #1e3a5f;
-    color: #c8d6e5;
-    border: 1px solid #3a6ea5;
-    border-radius: 2px;
-    padding: 4px 10px;
-    font-size: 0.82rem;
-    font-family: 'Courier Prime', monospace;
-    margin: 4px 2px;
-}
-.clue-tag.critical {
-    border-color: #e2c97e;
-    color: #e2c97e;
-    background-color: #1f180a;
-}
-
-/* SUSPECT CARD */
-.suspect-card {
-    background-color: #0f1e30;
-    border: 1px solid #1e3a5f;
-    border-radius: 2px;
-    padding: 12px 16px;
-    margin: 8px 0;
-    font-family: 'Courier Prime', monospace;
-}
-.suspect-card blockquote {
-    margin: 8px 0 0 0;
-    padding-left: 12px;
-    border-left: 3px solid #3a6ea5;
-    color: #94afc8;
-    font-style: italic;
-}
-
-/* VERDICT PANEL */
+/* VERDICT PANELS */
 .verdict-correct {
     background: linear-gradient(135deg, #0a1f0f, #0d2015);
     border: 2px solid #22c55e;
@@ -299,7 +225,7 @@ hr {
     text-align: center;
 }
 
-/* STEP INDICATOR */
+/* STEP BAR */
 .step-bar {
     display: flex;
     gap: 6px;
@@ -311,15 +237,13 @@ hr {
     background-color: #1e3a5f;
     border-radius: 1px;
 }
-.step-dot.done {
-    background-color: #22c55e;
-}
+.step-dot.done  { background-color: #22c55e; }
 .step-dot.active {
     background-color: #e2c97e;
-    box-shadow: 0 0 6px rgba(226, 201, 126, 0.5);
+    box-shadow: 0 0 4px rgba(226, 201, 126, 0.3);
 }
 
-/* CASE FILE HEADER */
+/* CASE HEADER */
 .case-header {
     background: linear-gradient(180deg, #111827, #0d1117);
     border: 1px solid #1e3a5f;

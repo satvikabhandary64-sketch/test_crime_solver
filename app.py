@@ -38,9 +38,15 @@ defaults = {
     "reasoning": "",
     "selected_room": None,
     "visited_rooms": [],
-    "revealed_clues": [],
+    "revealed_clues": {},      # room_name -> "true" | "false" (which clue was revealed)
+    "unlocked_rooms": [],      # rooms whose lock has been solved
+    "lock_attempts": {},       # room_name -> attempt count
+    "puzzle_attempts": {},     # room_name -> attempt count
     "hints_used": 0,
     "accusation_suspect": None,
+    "logic_grid_done": False,
+    "logic_grid_result": None, # "correct" | "wrong"
+    "logic_grid_state": {},    # {suspect: [bool, bool, ...]}
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -52,22 +58,17 @@ for k, v in defaults.items():
 def step_bar(current: int, total: int = 4):
     dots = ""
     for i in range(total):
-        if i < current:
-            cls = "done"
-        elif i == current:
-            cls = "active"
-        else:
-            cls = ""
+        cls = "done" if i < current else ("active" if i == current else "")
         dots += f'<div class="step-dot {cls}"></div>'
-    labels = ["📂 Case File", "🧾 Evidence", "🗺️ Investigate", "⚖️ Verdict"]
+    labels = ["📂 Case File", "🧾 Evidence + Grid", "🗺️ Investigate", "⚖️ Verdict"]
     st.markdown(
         f'<div class="step-bar">{dots}</div>'
         f'<p style="font-size:0.75rem;color:#94afc8;margin:0 0 16px 0;">'
-        f'Step {current+1}/4 — {labels[min(current, 3)]}</p>',
+        f'Step {current+1}/4 — {labels[min(current,3)]}</p>',
         unsafe_allow_html=True
     )
 
-def new_case(difficulty: str, exclude=None):
+def new_case(difficulty, exclude=None):
     pool = [c for c in cases if c["difficulty"] == difficulty]
     if exclude and len(pool) > 1:
         pool = [c for c in pool if c != exclude]
@@ -76,11 +77,246 @@ def new_case(difficulty: str, exclude=None):
 def reset_investigation():
     st.session_state.selected_room = None
     st.session_state.visited_rooms = []
-    st.session_state.revealed_clues = []
+    st.session_state.revealed_clues = {}
+    st.session_state.unlocked_rooms = []
+    st.session_state.lock_attempts = {}
+    st.session_state.puzzle_attempts = {}
     st.session_state.hints_used = 0
     st.session_state.accusation_suspect = None
     st.session_state.selected_suspect = ""
     st.session_state.reasoning = ""
+    st.session_state.logic_grid_done = False
+    st.session_state.logic_grid_result = None
+    st.session_state.logic_grid_state = {}
+
+def check_answer(user_input: str, correct: str) -> bool:
+    return user_input.strip().lower() == correct.strip().lower()
+
+def clue_box(text: str, correct: bool):
+    if correct:
+        color, border, icon = "#22c55e", "#22c55e", "📋"
+    else:
+        color, border, icon = "#ef4444", "#ef4444", "⚠️"
+    st.markdown(f"""
+        <div style='background:#0a1628;border:1px solid #1e3a5f;
+            border-left:4px solid {border};border-radius:2px;
+            padding:10px 14px;color:{color};
+            font-family:"Courier Prime",monospace;font-size:0.9rem;margin-top:8px;'>
+        {icon} {text}
+        </div>
+    """, unsafe_allow_html=True)
+
+def info_box(text: str, accent: str = "#3a6ea5"):
+    st.markdown(f"""
+        <div style='background:#0f1e30;border:1px solid {accent};
+            border-radius:2px;padding:10px 14px;
+            color:#c8d6e5;font-family:"Courier Prime",monospace;
+            font-size:0.9rem;margin:6px 0;line-height:1.6;'>
+        {text}
+        </div>
+    """, unsafe_allow_html=True)
+
+# ---------------------------
+# PUZZLE RENDERERS
+# ---------------------------
+
+def render_lock(room_data: dict) -> bool:
+    """
+    Renders the lock puzzle for a room.
+    Returns True if the room is unlocked (solved or no lock).
+    """
+    name = room_data["name"]
+    lock = room_data.get("lock")
+
+    if not lock:
+        return True
+    if name in st.session_state.unlocked_rooms:
+        return True
+
+    attempts = st.session_state.lock_attempts.get(name, 0)
+
+    st.markdown(f"""
+        <div style='background:#1a0a0a;border:2px solid #ef4444;
+            border-radius:4px;padding:16px 20px;margin:12px 0;'>
+        <p style='color:#ef4444;font-family:"Special Elite",cursive;
+            font-size:1.1rem;margin:0 0 12px 0;'>🔐 LOCKED ROOM</p>
+        <p style='color:#c8d6e5;font-family:"Courier Prime",monospace;
+            white-space:pre-line;'>{lock['question']}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    if attempts >= 1:
+        st.caption(f"💡 Hint: {lock['hint']}")
+
+    user_ans = st.text_input("Enter the answer to unlock:", key=f"lock_input_{name}", placeholder="Type your answer...")
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🔓 Unlock", key=f"lock_btn_{name}"):
+            st.session_state.lock_attempts[name] = attempts + 1
+            if check_answer(user_ans, lock["answer"]):
+                st.session_state.unlocked_rooms.append(name)
+                st.success("✅ Correct! Room unlocked.")
+                st.rerun()
+            else:
+                st.error("❌ Wrong answer. Try again.")
+                st.rerun()
+    return False
+
+
+def render_puzzle(room_data: dict):
+    """
+    Renders the in-room puzzle. Stores result in revealed_clues.
+    """
+    name = room_data["name"]
+    puzzle = room_data.get("puzzle")
+
+    if not puzzle:
+        # No puzzle — auto-reveal true clue
+        if name not in st.session_state.revealed_clues:
+            if st.button("🔦 Examine Evidence", key=f"examine_{name}"):
+                st.session_state.revealed_clues[name] = "true"
+                st.rerun()
+        else:
+            clue_box(room_data["clue_revealed"], correct=True)
+        return
+
+    if name in st.session_state.revealed_clues:
+        was_correct = st.session_state.revealed_clues[name] == "true"
+        text = room_data["clue_revealed"] if was_correct else room_data.get("false_clue", room_data["puzzle"]["false_clue"])
+        clue_box(text, correct=was_correct)
+        return
+
+    attempts = st.session_state.puzzle_attempts.get(name, 0)
+    ptype = puzzle["type"]
+
+    st.markdown(f"""
+        <div style='background:#0a1628;border:2px solid #e2c97e;
+            border-radius:4px;padding:16px 20px;margin:12px 0;'>
+        <p style='color:#e2c97e;font-family:"Special Elite",cursive;
+            font-size:1rem;margin:0 0 10px 0;'>
+        {"🧩 RIDDLE" if ptype == "riddle" else "🔢 CIPHER"} — Solve to reveal evidence
+        </p>
+        <p style='color:#c8d6e5;font-family:"Courier Prime",monospace;
+            white-space:pre-line;line-height:1.7;'>{puzzle['question']}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    if ptype == "cipher" and "cipher_text" in puzzle:
+        st.markdown(f"""
+            <div style='background:#111827;border:1px solid #3a6ea5;
+                border-radius:2px;padding:10px 16px;margin:8px 0;
+                font-family:"Courier Prime",monospace;font-size:1.1rem;
+                color:#e2c97e;letter-spacing:3px;text-align:center;'>
+            {puzzle['cipher_text']}
+            </div>
+        """, unsafe_allow_html=True)
+
+    if attempts >= 1:
+        st.caption(f"💡 Hint: {puzzle['hint']}")
+
+    user_ans = st.text_input("Your answer:", key=f"puzzle_input_{name}", placeholder="Type your answer...")
+    col1, col2, col3 = st.columns([1, 1, 3])
+    with col1:
+        if st.button("✅ Submit", key=f"puzzle_submit_{name}"):
+            st.session_state.puzzle_attempts[name] = attempts + 1
+            if check_answer(user_ans, puzzle["answer"]):
+                st.session_state.revealed_clues[name] = "true"
+                st.success("✅ Correct! Evidence unlocked.")
+                st.rerun()
+            else:
+                st.session_state.revealed_clues[name] = "false"
+                st.error("❌ Wrong — a misleading clue has been logged.")
+                st.rerun()
+    with col2:
+        if st.button("⏭️ Skip", key=f"puzzle_skip_{name}"):
+            # Skipping costs points but shows true clue
+            st.session_state.score = max(0, st.session_state.score - 5)
+            st.session_state.revealed_clues[name] = "true"
+            st.info("Skipped (−5 pts). True clue revealed.")
+            st.rerun()
+
+
+def render_logic_grid(case: dict):
+    """
+    Full logic grid widget. Returns True when completed.
+    """
+    grid_data = case.get("logic_grid")
+    if not grid_data:
+        return True
+
+    if st.session_state.logic_grid_done:
+        result = st.session_state.logic_grid_result
+        clue = grid_data["reward_clue"] if result == "correct" else grid_data["false_clue"]
+        clue_box(f"Grid conclusion: {clue}", correct=(result == "correct"))
+        return True
+
+    st.markdown(f"""
+        <div style='background:#0a1628;border:2px solid #3a6ea5;
+            border-top:3px solid #e2c97e;border-radius:4px;
+            padding:16px 20px;margin:16px 0;'>
+        <p style='color:#e2c97e;font-family:"Special Elite",cursive;
+            font-size:1.1rem;margin:0 0 8px 0;'>📊 LOGIC GRID — Eliminate the Suspects</p>
+        <p style='color:#94afc8;font-family:"Courier Prime",monospace;
+            font-size:0.88rem;margin:0;'>{grid_data['intro']}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    suspects = grid_data["suspects"]
+    attributes = grid_data["attributes"]
+
+    # Init grid state
+    if not st.session_state.logic_grid_state:
+        st.session_state.logic_grid_state = {
+            s: [False] * len(attributes) for s in suspects
+        }
+
+    # Header row
+    header_cols = st.columns([2] + [1] * len(attributes))
+    header_cols[0].markdown(
+        "<p style='color:#e2c97e;font-size:0.78rem;font-family:\"Courier Prime\",monospace;"
+        "font-weight:bold;margin:0;'>SUSPECT</p>",
+        unsafe_allow_html=True
+    )
+    for i, attr in enumerate(attributes):
+        header_cols[i + 1].markdown(
+            f"<p style='color:#94afc8;font-size:0.72rem;font-family:\"Courier Prime\",monospace;"
+            f"text-align:center;margin:0;line-height:1.3;'>{attr}</p>",
+            unsafe_allow_html=True
+        )
+
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+    # Grid rows
+    for s in suspects:
+        row_cols = st.columns([2] + [1] * len(attributes))
+        row_cols[0].markdown(
+            f"<p style='color:#c8d6e5;font-family:\"Courier Prime\",monospace;"
+            f"font-size:0.85rem;margin:4px 0;'>👤 {s}</p>",
+            unsafe_allow_html=True
+        )
+        for i in range(len(attributes)):
+            current = st.session_state.logic_grid_state[s][i]
+            btn_label = "✅" if current else "⬜"
+            if row_cols[i + 1].button(btn_label, key=f"grid_{s}_{i}"):
+                st.session_state.logic_grid_state[s][i] = not current
+                st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("📤 Submit Grid", key="submit_grid", use_container_width=False):
+        correct_map = grid_data["correct"]
+        all_correct = True
+        for s in suspects:
+            player = st.session_state.logic_grid_state[s]
+            expected = correct_map[s]
+            if player != expected:
+                all_correct = False
+                break
+        st.session_state.logic_grid_done = True
+        st.session_state.logic_grid_result = "correct" if all_correct else "wrong"
+        st.rerun()
+
+    return False
+
 
 # ---------------------------
 # SIDEBAR
@@ -99,18 +335,31 @@ with st.sidebar:
     if st.session_state.step == 2 and st.session_state.case:
         st.markdown("---")
         st.markdown("### 💡 Hints")
-        case = st.session_state.case
-        hints = case.get("hints", [])
+        case_s = st.session_state.case
+        hints = case_s.get("hints", [])
         used = st.session_state.hints_used
         remaining = len(hints) - used
         st.caption(f"{remaining} hint(s) remaining")
         if used < len(hints):
-            if st.button("🔍 Use a Hint (-3 pts)"):
+            if st.button("🔍 Use Hint (−3 pts)"):
                 st.session_state.hints_used += 1
                 st.session_state.score = max(0, st.session_state.score - 3)
                 st.rerun()
         for i in range(used):
             st.info(f"💡 {hints[i]}")
+
+        st.markdown("---")
+        st.markdown("### 🧩 Puzzle Legend")
+        st.markdown(
+            "<p style='font-size:0.8rem;color:#94afc8;font-family:\"Courier Prime\",monospace;line-height:1.8;'>"
+            "🔐 Red border = locked room<br>"
+            "🧩 Amber border = riddle puzzle<br>"
+            "🔢 Amber border = cipher puzzle<br>"
+            "✅ Green = correct answer<br>"
+            "⚠️ Red = misleading clue received<br>"
+            "⏭️ Skip = −5 pts, true clue shown</p>",
+            unsafe_allow_html=True
+        )
 
     if st.session_state.started:
         st.markdown("---")
@@ -129,7 +378,7 @@ if not st.session_state.started:
                 🕵️ CRIME SOLVER PRO
             </h1>
             <p style='color:#94afc8; font-size:1.1rem; letter-spacing:2px;'>
-                DETECTIVE SYSTEM v2.0 — INITIALIZING...
+                DETECTIVE SYSTEM v3.0 — INITIALIZING...
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -139,19 +388,18 @@ if not st.session_state.started:
         st.markdown("""
             <div class='case-header fade-in'>
             <h3 style='margin-top:0'>📋 Mission Brief</h3>
-            <p>You are Detective. Your task:</p>
-            <ul style='color:#94afc8; line-height:2;'>
-                <li>📂 Read the case file carefully</li>
-                <li>🧾 Study the evidence board</li>
+            <ul style='color:#94afc8; line-height:2.2; font-family:"Courier Prime",monospace;'>
+                <li>📂 Read the case file</li>
+                <li>📊 Complete the logic grid to narrow suspects</li>
                 <li>🗺️ Explore the crime scene room by room</li>
-                <li>🔎 Reveal clues hidden in each location</li>
-                <li>💬 Hear what suspects have to say</li>
+                <li>🔐 Solve lock puzzles to enter sealed rooms</li>
+                <li>🧩 Crack riddles &amp; ciphers to reveal evidence</li>
+                <li>⚠️ Wrong answers give <strong>misleading clues</strong></li>
+                <li>⏭️ Skip a puzzle for −5 pts</li>
                 <li>⚖️ Accuse the correct culprit</li>
-                <li>⚡ Faster solutions earn more points</li>
             </ul>
             </div>
         """, unsafe_allow_html=True)
-
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🟢 ENTER THE SYSTEM", use_container_width=True):
             st.session_state.started = True
@@ -173,18 +421,18 @@ case = st.session_state.case
 # ---------------------------
 if st.session_state.step == 0:
     step_bar(0)
+    env = case["environment"]
     st.markdown(f"""
         <div class='case-header fade-in'>
-            <p style='color:#94afc8; font-size:0.8rem; letter-spacing:2px; margin:0 0 4px 0;'>
-                CASE #{st.session_state.round:03d} — {case['difficulty'].upper()} — {case['environment']['location'].upper()}
+            <p style='color:#94afc8;font-size:0.8rem;letter-spacing:2px;margin:0 0 4px 0;'>
+                CASE #{st.session_state.round:03d} — {case['difficulty'].upper()} — {env['location'].upper()}
             </p>
             <h2 style='margin:0 0 16px 0;'>📂 {case['title']}</h2>
-            <p style='color:#c8d6e5; font-size:1.05rem; line-height:1.8;'>{case['story']}</p>
+            <p style='color:#c8d6e5;font-size:1.05rem;line-height:1.8;'>{case['story']}</p>
         </div>
     """, unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
-    env = case["environment"]
     with col1:
         st.markdown(f"**📍 Location:** {env['location']}")
         st.markdown(f"**🕐 Time:** {env['time']}")
@@ -192,8 +440,7 @@ if st.session_state.step == 0:
         st.markdown(f"**🌧️ Weather:** {env['weather']}")
         st.markdown(f"**🔊 Sounds:** {env['sounds']}")
     with col3:
-        suspect_names = ", ".join(case["suspects"].keys())
-        st.markdown(f"**🧑‍🤝‍🧑 Suspects:** {suspect_names}")
+        st.markdown(f"**🧑 Suspects:** {', '.join(case['suspects'].keys())}")
         st.markdown(f"**🏆 Reward:** {case['reward_points']} base pts")
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -203,28 +450,17 @@ if st.session_state.step == 0:
         st.rerun()
 
 # ---------------------------
-# STEP 1: Evidence Board
+# STEP 1: Evidence Board + Logic Grid
 # ---------------------------
 elif st.session_state.step == 1:
     step_bar(1)
     st.markdown("## 🧾 Evidence Board")
-    st.caption("Study all clues before entering the crime scene.")
 
     col_clues, col_suspects = st.columns([3, 2])
-
     with col_clues:
         st.markdown("### 🔎 Known Clues")
-        for i, clue in enumerate(case["clues"]):
-            st.markdown(f"""
-                <div style='
-                    background:#0f1e30; border:1px solid #1e3a5f;
-                    border-left:3px solid #e2c97e; border-radius:2px;
-                    padding:10px 14px; margin:6px 0;
-                    font-family:"Courier Prime",monospace; color:#c8d6e5;
-                '>
-                🔎 {clue}
-                </div>
-            """, unsafe_allow_html=True)
+        for clue in case["clues"]:
+            info_box(f"🔎 {clue}")
 
     with col_suspects:
         st.markdown("### 🧑 Known Suspects")
@@ -232,10 +468,18 @@ elif st.session_state.step == 1:
             with st.expander(f"👤 {name}"):
                 st.markdown(f"*{info['description']}*")
 
+    st.markdown("---")
+    st.markdown("## 📊 Logic Grid")
+    st.caption("Complete the grid before heading to the crime scene. Your grid result will follow you.")
+    grid_done = render_logic_grid(case)
+
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🗺️ Enter Crime Scene →", use_container_width=True):
-        st.session_state.step = 2
-        st.rerun()
+    if grid_done:
+        if st.button("🗺️ Enter Crime Scene →", use_container_width=True):
+            st.session_state.step = 2
+            st.rerun()
+    else:
+        st.warning("⚠️ Complete the logic grid above before proceeding.")
 
 # ---------------------------
 # STEP 2: Blueprint Map Investigation
@@ -243,33 +487,24 @@ elif st.session_state.step == 1:
 elif st.session_state.step == 2:
     step_bar(2)
     st.markdown("## 🗺️ Crime Scene Investigation")
-    st.caption("Click a room on the blueprint to investigate. Gather evidence, then accuse a suspect.")
 
     rooms = case["rooms"]
     visited = st.session_state.visited_rooms
     active = st.session_state.selected_room
 
-    # ---- Build 2D grid ----
+    # Grid layout
     max_x = max(r["grid_x"] for r in rooms) + 1
     max_y = max(r["grid_y"] for r in rooms) + 1
 
-    # Grid header label
-    st.markdown("""
-        <div style='
-            background:#0a1628;
-            border:2px solid #1e3a5f;
-            border-top:3px solid #3a6ea5;
-            border-radius:4px;
-            padding:12px 16px 0 16px;
-            margin-bottom:0;
-            position:relative;
-        '>
+    st.markdown(f"""
+        <div style='background:#0a1628;border:2px solid #1e3a5f;
+            border-top:3px solid #3a6ea5;border-radius:4px;
+            padding:12px 16px 0 16px;'>
         <p style='color:#3a6ea5;font-size:0.7rem;letter-spacing:2px;margin:0 0 12px 0;'>
-            ▪ FLOOR PLAN — {loc} ▪
+        ▪ FLOOR PLAN — {case["environment"]["location"].upper()} ▪
         </p>
-    """.format(loc=case["environment"]["location"].upper()), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-    # Render grid rows
     for y in range(max_y):
         cols = st.columns(max_x)
         for x in range(max_x):
@@ -277,9 +512,11 @@ elif st.session_state.step == 2:
             with cols[x]:
                 if room:
                     name = room["name"]
-                    icon = room["icon"]
+                    is_locked = room.get("locked", False) and name not in st.session_state.unlocked_rooms
                     is_active = (active == name)
                     is_visited = name in visited
+                    has_puzzle = "puzzle" in room
+                    clue_state = st.session_state.revealed_clues.get(name)
 
                     cell_class = "room-cell"
                     if is_active:
@@ -287,126 +524,113 @@ elif st.session_state.step == 2:
                     elif is_visited:
                         cell_class += " visited"
 
-                    badge = "✅ " if is_visited and not is_active else ""
+                    badge = ""
+                    if is_locked:
+                        badge = "🔐 "
+                    elif clue_state == "true":
+                        badge = "✅ "
+                    elif clue_state == "false":
+                        badge = "⚠️ "
+                    elif is_visited:
+                        badge = "👁 "
 
                     st.markdown(f"""
                         <div class='{cell_class}'>
-                            <span class='room-icon'>{icon}</span>
+                            <span class='room-icon'>{room['icon']}</span>
                             <span class='room-name'>{badge}{name}</span>
                         </div>
                     """, unsafe_allow_html=True)
 
-                    if st.button(f"Enter", key=f"room_{x}_{y}"):
+                    if st.button("Enter", key=f"room_{x}_{y}"):
                         st.session_state.selected_room = name
                         if name not in st.session_state.visited_rooms:
                             st.session_state.visited_rooms.append(name)
                         st.rerun()
                 else:
-                    # Empty cell — hallway / wall gap
                     st.markdown("""
-                        <div style='
-                            background:repeating-linear-gradient(
-                                45deg,
-                                #090f1a,
-                                #090f1a 6px,
-                                #0b1220 6px,
-                                #0b1220 12px
-                            );
-                            border:1px solid #0f1e30;
-                            border-radius:2px;
-                            min-height:90px;
-                        '></div>
+                        <div style='background:repeating-linear-gradient(
+                            45deg,#090f1a,#090f1a 6px,#0b1220 6px,#0b1220 12px);
+                            border:1px solid #0f1e30;border-radius:2px;min-height:90px;'>
+                        </div>
                     """, unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)  # close blueprint container
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---- Room Detail Panel ----
     if active:
         room_data = next((r for r in rooms if r["name"] == active), None)
         if room_data:
-            col_img, col_info = st.columns([2, 3])
+            # LOCK CHECK
+            is_locked = room_data.get("locked", False)
+            if is_locked:
+                unlocked = render_lock(room_data)
+                if not unlocked:
+                    st.stop()
 
+            # ROOM CONTENT
+            col_img, col_info = st.columns([2, 3])
             with col_img:
-                st.image(
-                    room_data["image_url"],
-                    caption=f"📷 {room_data['name']}",
-                    use_container_width=True
-                )
+                img = room_data.get("image_url", "")
+                if img and img != "YOUR_PHOTO_HERE":
+                    st.image(img, caption=f"📷 {room_data['name']}", use_container_width=True)
+                else:
+                    st.markdown(f"""
+                        <div style='background:#0f1e30;border:2px dashed #1e3a5f;
+                            border-radius:4px;height:200px;display:flex;
+                            align-items:center;justify-content:center;'>
+                        <span style='font-size:3rem;'>{room_data['icon']}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
 
             with col_info:
                 st.markdown(f"### {room_data['icon']} {room_data['name']}")
+                info_box(room_data["description"])
                 st.markdown(f"""
-                    <div style='
-                        background:#0f1e30; border:1px solid #1e3a5f;
-                        border-radius:2px; padding:12px 16px; margin-bottom:12px;
-                        color:#c8d6e5; font-family:"Courier Prime",monospace;
-                        line-height:1.7;
-                    '>
-                    {room_data['description']}
-                    </div>
-                """, unsafe_allow_html=True)
-
-                # Object found
-                st.markdown(f"""
-                    <div style='
-                        background:#1f180a; border:1px solid #e2c97e;
-                        border-radius:2px; padding:8px 14px; margin-bottom:12px;
-                        color:#e2c97e; font-size:0.88rem;
-                        font-family:"Courier Prime",monospace;
-                    '>
+                    <div style='background:#1f180a;border:1px solid #e2c97e;
+                        border-radius:2px;padding:8px 14px;margin:8px 0;
+                        color:#e2c97e;font-size:0.88rem;
+                        font-family:"Courier Prime",monospace;'>
                     🔍 Object: <strong>{room_data['object']}</strong>
                     </div>
                 """, unsafe_allow_html=True)
 
-                # Revealed clue
-                clue_key = f"clue_{active}"
-                if clue_key not in st.session_state.revealed_clues:
-                    if st.button("🔦 Examine Evidence", key="examine"):
-                        st.session_state.revealed_clues.append(clue_key)
-                        st.rerun()
-                else:
-                    st.markdown(f"""
-                        <div style='
-                            background:#0a1628; border:1px solid #3a6ea5;
-                            border-left:4px solid #22c55e; border-radius:2px;
-                            padding:10px 14px; color:#22c55e;
-                            font-family:"Courier Prime",monospace; font-size:0.9rem;
-                        '>
-                        📋 Clue revealed: {room_data['clue_revealed']}
-                        </div>
-                    """, unsafe_allow_html=True)
+                # PUZZLE
+                render_puzzle(room_data)
 
-            # Suspect dialogue (if room has a linked suspect)
+            # SUSPECT DIALOGUE
             if "suspect" in room_data:
-                suspect_name = room_data["suspect"]
-                suspect_info = case["suspects"].get(suspect_name)
-                if suspect_info:
+                sname = room_data["suspect"]
+                sinfo = case["suspects"].get(sname)
+                if sinfo:
                     st.markdown(f"""
                         <div class='suspect-card'>
-                            <strong>👤 {suspect_name}</strong> — {suspect_info['description']}
-                            <blockquote>
-                                "{random.choice(suspect_info['dialogue'])}"
-                            </blockquote>
+                            <strong>👤 {sname}</strong> — {sinfo['description']}
+                            <blockquote>"{random.choice(sinfo['dialogue'])}"</blockquote>
                         </div>
                     """, unsafe_allow_html=True)
 
-                    # Interrogate button
-                    interrogate_key = f"interrogate_{active}"
-                    if st.button(f"🎙️ Interrogate {suspect_name}", key=interrogate_key):
-                        st.session_state[f"extra_dialogue_{suspect_name}"] = random.choice(
-                            suspect_info["dialogue"]
-                        )
+                    if st.button(f"🎙️ Interrogate {sname}", key=f"interro_{active}"):
+                        st.session_state[f"xdialogue_{sname}"] = random.choice(sinfo["dialogue"])
                         st.rerun()
 
-                    extra = st.session_state.get(f"extra_dialogue_{suspect_name}")
+                    extra = st.session_state.get(f"xdialogue_{sname}")
                     if extra:
-                        st.info(f'💬 {suspect_name}: "{extra}"')
+                        st.info(f'💬 {sname}: "{extra}"')
 
             st.markdown("---")
 
-            # Accuse from this room
+            # ACCUSATION PANEL
             st.markdown("### ⚖️ Ready to Accuse?")
+            false_clues_received = [
+                r for r, v in st.session_state.revealed_clues.items() if v == "false"
+            ]
+            if false_clues_received:
+                st.warning(
+                    f"⚠️ You received misleading clues in: {', '.join(false_clues_received)}. "
+                    "Weigh the evidence carefully."
+                )
+
             suspect_options = list(case["suspects"].keys())
             accusation = st.selectbox(
                 "Select suspect to accuse",
@@ -415,17 +639,16 @@ elif st.session_state.step == 2:
             )
             reasoning_input = st.text_area(
                 "Your reasoning (optional)",
-                placeholder="Explain why you think this suspect is guilty...",
+                placeholder="Explain why you believe this suspect is guilty...",
                 key="reasoning_input",
                 height=80
             )
 
             rooms_visited = len(visited)
-            rooms_total = len(rooms)
-            st.caption(f"Rooms investigated: {rooms_visited}/{rooms_total}")
+            st.caption(f"Rooms investigated: {rooms_visited}/{len(rooms)}")
 
             if rooms_visited < 2:
-                st.warning("⚠️ Investigate at least 2 rooms before making an accusation.")
+                st.warning("⚠️ Investigate at least 2 rooms before accusing.")
             elif accusation != "-- Select --":
                 if st.button(f"🎯 ACCUSE {accusation.upper()}", use_container_width=True):
                     st.session_state.selected_suspect = accusation
@@ -434,18 +657,19 @@ elif st.session_state.step == 2:
                     st.rerun()
 
     else:
-        st.info("👆 Click **Enter** beneath any room on the blueprint to start investigating.")
+        st.info("👆 Click **Enter** beneath any room on the blueprint to investigate.")
 
-    # Progress summary
+    # Progress bar
     st.markdown("<br>", unsafe_allow_html=True)
     visited_count = len(st.session_state.visited_rooms)
-    total_rooms = len(rooms)
-    revealed_count = len(st.session_state.revealed_clues)
+    true_clues = sum(1 for v in st.session_state.revealed_clues.values() if v == "true")
+    false_clues = sum(1 for v in st.session_state.revealed_clues.values() if v == "false")
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("🚪 Rooms Visited", f"{visited_count}/{total_rooms}")
-    c2.metric("🔎 Clues Revealed", revealed_count)
-    c3.metric("💡 Hints Used", st.session_state.hints_used)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("🚪 Rooms Visited", f"{visited_count}/{len(rooms)}")
+    c2.metric("✅ True Clues", true_clues)
+    c3.metric("⚠️ False Clues", false_clues)
+    c4.metric("💡 Hints Used", st.session_state.hints_used)
 
 # ---------------------------
 # STEP 3: Verdict
@@ -456,27 +680,27 @@ elif st.session_state.step == 3:
     selected = st.session_state.selected_suspect
     time_taken = int(time.time() - st.session_state.start_time)
     minutes, seconds = divmod(time_taken, 60)
-
     is_correct = (selected == correct)
+
+    false_count = sum(1 for v in st.session_state.revealed_clues.values() if v == "false")
 
     if is_correct:
         speed_bonus = max(60 - time_taken, 0)
         hint_penalty = st.session_state.hints_used * 3
-        points = case.get("reward_points", 10) + speed_bonus - hint_penalty
-        points = max(points, 1)
+        false_penalty = false_count * 5
+        points = max(case.get("reward_points", 10) + speed_bonus - hint_penalty - false_penalty, 1)
         st.session_state.score += points
 
         st.markdown(f"""
             <div class='verdict-correct fade-in'>
                 <h2 class='glow'>✔ CASE CLOSED</h2>
-                <p style='color:#c8d6e5; font-size:1.1rem;'>
-                    Your accusation was correct. <strong>{correct}</strong> is the culprit.
+                <p style='color:#c8d6e5;font-size:1.1rem;'>
+                    Correct. <strong>{correct}</strong> is the culprit.
                 </p>
-                <p style='color:#22c55e; font-size:1.4rem; font-weight:bold;'>
-                    +{points} points earned
-                </p>
-                <p style='color:#94afc8; font-size:0.85rem;'>
-                    Base: {case['reward_points']} | Speed bonus: +{speed_bonus} | Hints: -{hint_penalty}
+                <p style='color:#22c55e;font-size:1.4rem;font-weight:bold;'>+{points} points</p>
+                <p style='color:#94afc8;font-size:0.85rem;'>
+                    Base: {case['reward_points']} | Speed: +{speed_bonus} |
+                    Hints: −{hint_penalty} | Misleads followed: −{false_penalty}
                 </p>
             </div>
         """, unsafe_allow_html=True)
@@ -484,65 +708,44 @@ elif st.session_state.step == 3:
         st.markdown(f"""
             <div class='verdict-wrong fade-in'>
                 <h2 style='color:#ef4444;'>✗ WRONG ACCUSATION</h2>
-                <p style='color:#c8d6e5; font-size:1.1rem;'>
-                    You accused <strong>{selected}</strong>, but the real culprit was <strong>{correct}</strong>.
+                <p style='color:#c8d6e5;font-size:1.1rem;'>
+                    You accused <strong>{selected}</strong>.
+                    The real culprit was <strong>{correct}</strong>.
                 </p>
                 <p style='color:#ef4444;'>No points awarded.</p>
+                {f"<p style='color:#94afc8;font-size:0.85rem;'>You followed {false_count} misleading clue(s). That may have cost you.</p>" if false_count else ""}
             </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("### 🧠 Case Explanation")
-        st.markdown(f"""
-            <div style='
-                background:#0f1e30; border:1px solid #1e3a5f;
-                border-left:4px solid #e2c97e; border-radius:2px;
-                padding:14px 18px; color:#c8d6e5;
-                font-family:"Courier Prime",monospace; line-height:1.8;
-            '>
-            {case.get('explanation', 'No explanation available.')}
-            </div>
-        """, unsafe_allow_html=True)
+        info_box(case.get("explanation", "No explanation available."), accent="#e2c97e")
 
     with col2:
         st.markdown("### 📋 Your Investigation")
-        st.markdown(f"""
-            <div style='
-                background:#0f1e30; border:1px solid #1e3a5f;
-                border-radius:2px; padding:14px 18px;
-                font-family:"Courier Prime",monospace;
-            '>
-            <p style='color:#94afc8; margin:0 0 6px 0;'>⏱️ Time: {minutes:02d}:{seconds:02d}</p>
-            <p style='color:#94afc8; margin:0 0 6px 0;'>🚪 Rooms visited: {len(st.session_state.visited_rooms)}/{len(case['rooms'])}</p>
-            <p style='color:#94afc8; margin:0 0 6px 0;'>🔎 Clues revealed: {len(st.session_state.revealed_clues)}</p>
-            <p style='color:#94afc8; margin:0 0 12px 0;'>💡 Hints used: {st.session_state.hints_used}</p>
-            <p style='color:#c8d6e5; font-style:italic; margin:0;'>"{st.session_state.reasoning}"</p>
-            </div>
-        """, unsafe_allow_html=True)
+        grid_result = st.session_state.logic_grid_result or "not submitted"
+        info_box(
+            f"⏱️ Time: {minutes:02d}:{seconds:02d}<br>"
+            f"🚪 Rooms visited: {len(st.session_state.visited_rooms)}/{len(case['rooms'])}<br>"
+            f"✅ True clues: {sum(1 for v in st.session_state.revealed_clues.values() if v == 'true')}<br>"
+            f"⚠️ Misleading clues: {false_count}<br>"
+            f"📊 Logic grid: {grid_result}<br>"
+            f"💡 Hints used: {st.session_state.hints_used}<br><br>"
+            f"<em>\"{st.session_state.reasoning}\"</em>"
+        )
 
-    # Visited rooms recap
-    st.markdown("### 🗺️ Rooms You Investigated")
-    visited_names = st.session_state.visited_rooms
-    if visited_names:
-        cols = st.columns(min(len(visited_names), 3))
-        for i, rname in enumerate(visited_names):
+    # Clue breakdown
+    if st.session_state.revealed_clues:
+        st.markdown("### 🔎 Evidence You Collected")
+        for rname, result in st.session_state.revealed_clues.items():
             rd = next((r for r in case["rooms"] if r["name"] == rname), None)
             if rd:
-                with cols[i % 3]:
-                    st.markdown(f"""
-                        <div style='
-                            background:#0f1e30; border:1px solid #1e3a5f;
-                            border-radius:2px; padding:10px; text-align:center;
-                            font-family:"Courier Prime",monospace;
-                        '>
-                        <span style='font-size:1.4rem;'>{rd['icon']}</span><br>
-                        <span style='color:#94afc8; font-size:0.8rem;'>{rname}</span>
-                        </div>
-                    """, unsafe_allow_html=True)
+                was_correct = result == "true"
+                text = rd["clue_revealed"] if was_correct else rd.get("false_clue", rd.get("puzzle", {}).get("false_clue", "Misleading clue."))
+                clue_box(f"{rd['icon']} <strong>{rname}:</strong> {text}", correct=was_correct)
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("📁 Next Case →", use_container_width=True):
